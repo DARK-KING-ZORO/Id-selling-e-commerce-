@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>JCL ID Selle</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        body { background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); background-attachment: fixed; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .glass-card { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.2); transition: transform 0.3s ease; }
+        .glass-card:active { transform: scale(0.98); }
+        .page { display: none; animation: fadeIn 0.4s ease; padding-bottom: 80px; }
+        .page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
+        .zoom-img { transition: transform 0.3s ease; cursor: pointer; }
+        .zoom-img:active { transform: scale(1.05); }
+    </style>
+</head>
+<body class="min-h-screen relative">
+
+    <!-- AUTHENTICATION SCREEN -->
+    <div id="authScreen" class="fixed inset-0 bg-[#0f2027] z-[100] flex flex-col items-center justify-center p-6 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]">
+        <div class="glass-card w-full max-w-sm rounded-3xl p-8 border border-white/10 shadow-2xl relative overflow-hidden">
+            <div class="absolute top-[-50px] right-[-50px] w-32 h-32 bg-blue-500/30 rounded-full blur-3xl"></div>
+            
+            <div class="text-center mb-8 relative z-10">
+                <div class="w-16 h-16 mx-auto bg-gradient-to-br from-blue-400 to-purple-500 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
+                    <i class="fa-solid fa-gamepad text-3xl text-white"></i>
+                </div>
+                <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">JCL ID Selle</h1>
+                <p class="text-gray-400 mt-2 text-sm" id="userAuthTitle">Login to your account</p>
+            </div>
+            
+            <div class="space-y-4 relative z-10">
+                <div id="regNameField" class="hidden">
+                    <input type="text" id="authName" placeholder="Full Name" class="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-blue-500 transition text-white">
+                </div>
+                <input type="email" id="authEmail" placeholder="Email Address" class="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-blue-500 transition text-white">
+                <input type="password" id="authPass" placeholder="Password" class="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-blue-500 transition text-white">
+            </div>
+            
+            <button id="userAuthBtn" onclick="handleUserAuth()" class="w-full bg-gradient-to-r from-blue-500 to-purple-600 font-bold py-3 rounded-xl hover:shadow-[0_0_15px_rgba(59,130,246,0.5)] transition text-lg mt-6 mb-4 relative z-10">Login</button>
+            
+            <p class="text-center text-sm text-gray-400 relative z-10">
+                <span id="userAuthToggleText">Don't have an account?</span> 
+                <button onclick="toggleUserAuthMode()" class="text-blue-400 font-bold hover:underline ml-1" id="userAuthToggleBtn">Sign Up</button>
+            </p>
+        </div>
+    </div>
+
+    <!-- MAIN APP WRAPPER -->
+    <div id="mainApp" class="hidden">
+        
+        <!-- TOP BAR -->
+        <div class="glass fixed top-0 w-full z-40 px-4 py-3 flex justify-between items-center shadow-lg">
+            <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">JCL ID Selle</h1>
+            <div class="flex items-center gap-4">
+                <div class="flex items-center bg-black/30 px-3 py-1 rounded-full border border-yellow-500/50">
+                    <i class="fa-solid fa-coins text-yellow-400 mr-2"></i>
+                    <span id="userBalance" class="font-semibold text-sm">0</span>
+                    <button onclick="document.getElementById('addMoneyModal').classList.remove('hidden')" class="ml-2 text-green-400 hover:scale-110 transition"><i class="fa-solid fa-plus-circle"></i></button>
+                </div>
+                <button onclick="openNotif()" class="relative hover:scale-110 transition">
+                    <i class="fa-solid fa-bell text-xl text-gray-200"></i>
+                    <span id="notifDot" class="absolute -top-1 -right-1 bg-red-500 w-3 h-3 rounded-full hidden"></span>
+                </button>
+                <button onclick="logoutUser()" class="text-red-400 hover:text-red-500 transition"><i class="fa-solid fa-right-from-bracket text-lg"></i></button>
+            </div>
+        </div>
+
+        <div class="pt-20 px-4 max-w-lg mx-auto">
+            <!-- 1. HOME PAGE -->
+            <div id="home" class="page active">
+                <div class="flex overflow-x-auto gap-3 py-2 mb-4 whitespace-nowrap">
+                    <button onclick="filterCat('All')" class="glass px-5 py-2 rounded-full text-sm font-semibold hover:bg-white/20 active:scale-95 transition">All</button>
+                    <button onclick="filterCat('FreeFire')" class="glass px-5 py-2 rounded-full text-sm font-semibold hover:bg-white/20 active:scale-95 transition">FreeFire</button>
+                    <button onclick="filterCat('BGMI')" class="glass px-5 py-2 rounded-full text-sm font-semibold hover:bg-white/20 active:scale-95 transition">BGMI</button>
+                    <button onclick="filterCat('Instagram')" class="glass px-5 py-2 rounded-full text-sm font-semibold hover:bg-white/20 active:scale-95 transition">Instagram</button>
+                    <button onclick="filterCat('Facebook')" class="glass px-5 py-2 rounded-full text-sm font-semibold hover:bg-white/20 active:scale-95 transition">Facebook</button>
+                </div>
+                <div id="homeList" class="grid grid-cols-1 gap-5"></div>
+            </div>
+
+            <!-- 2. SEARCH PAGE -->
+            <div id="search" class="page">
+                <div class="glass flex items-center rounded-xl px-4 py-3 mb-4 focus-within:ring-2 ring-blue-500">
+                    <i class="fa-solid fa-search text-gray-400 mr-3"></i>
+                    <input type="text" id="searchInput" placeholder="Search ID..." class="w-full bg-transparent outline-none text-white" onkeyup="searchIds()">
+                </div>
+                <div class="grid grid-cols-2 gap-3 mb-5 text-sm">
+                    <input type="number" id="filterLevel" placeholder="Min Level" class="glass rounded-lg px-3 py-2 outline-none" onchange="searchIds()">
+                    <input type="number" id="filterYears" placeholder="Min Years" class="glass rounded-lg px-3 py-2 outline-none" onchange="searchIds()">
+                </div>
+                <div id="searchList" class="grid grid-cols-1 gap-5"></div>
+            </div>
+
+            <!-- 3. WALLET PAGE -->
+            <div id="wallet" class="page">
+                <div class="glass-card rounded-3xl p-8 text-center mb-6 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-blue-500/20 rounded-full blur-3xl -mr-10 -mt-10"></div>
+                    <h2 class="text-gray-300 mb-2 font-medium">Available Balance</h2>
+                    <h1 class="text-5xl font-bold text-yellow-400 drop-shadow-lg mb-6">🪙 <span id="walletBalance">0</span></h1>
+                    <button onclick="document.getElementById('addMoneyModal').classList.remove('hidden')" class="w-full max-w-[200px] mx-auto bg-gradient-to-r from-blue-500 to-purple-600 font-bold py-3 px-6 rounded-full hover:shadow-[0_0_15px_rgba(59,130,246,0.5)] transition flex items-center justify-center gap-2"><i class="fa-solid fa-plus-circle text-lg"></i> Add Coin</button>
+                </div>
+                <div class="flex items-center justify-between mb-4"><h3 class="font-bold text-lg border-l-4 border-blue-500 pl-2">Transaction History</h3></div>
+                <div id="txHistory" class="space-y-3"></div>
+            </div>
+
+            <!-- 4. CARD PAGE -->
+            <div id="card" class="page">
+                <h2 class="text-xl font-bold mb-4 border-l-4 border-blue-500 pl-2">My Card (Cart)</h2>
+                <div id="cartList" class="space-y-4"></div>
+            </div>
+
+            <!-- 5. HISTORY PAGE -->
+            <div id="history" class="page">
+                <h2 class="text-xl font-bold mb-4 border-l-4 border-blue-500 pl-2">Purchase History</h2>
+                <div id="historyList" class="space-y-4"></div>
+            </div>
+        </div>
+
+        <!-- BOTTOM NAV -->
+        <div class="glass fixed bottom-0 left-0 w-full z-40 rounded-t-3xl flex justify-around items-center py-3 text-gray-400">
+            <button onclick="navTo('home')" class="nav-btn active flex flex-col items-center hover:text-white transition w-1/5"><i class="fa-solid fa-home text-xl mb-1"></i><span class="text-[10px] font-medium">Home</span></button>
+            <button onclick="navTo('search')" class="nav-btn flex flex-col items-center hover:text-white transition w-1/5"><i class="fa-solid fa-search text-xl mb-1"></i><span class="text-[10px] font-medium">Search</span></button>
+            <button onclick="navTo('wallet')" class="nav-btn flex flex-col items-center hover:text-white transition w-1/5"><i class="fa-solid fa-wallet text-xl mb-1"></i><span class="text-[10px] font-medium">Wallet</span></button>
+            <button onclick="navTo('card')" class="nav-btn flex flex-col items-center hover:text-white transition w-1/5 relative"><i class="fa-solid fa-cart-shopping text-xl mb-1"></i><span class="text-[10px] font-medium">Card</span></button>
+            <button onclick="navTo('history')" class="nav-btn flex flex-col items-center hover:text-white transition w-1/5"><i class="fa-solid fa-clock-rotate-left text-xl mb-1"></i><span class="text-[10px] font-medium">History</span></button>
+        </div>
+
+        <!-- VIEW PAGE MODAL -->
+        <div id="viewModal" class="fixed inset-0 bg-black/95 z-[60] hidden flex-col overflow-y-auto">
+            <button onclick="closeModal('viewModal')" class="absolute top-4 right-4 bg-black/50 w-10 h-10 rounded-full flex items-center justify-center text-xl z-50 text-white"><i class="fa-solid fa-times"></i></button>
+            
+            <div class="relative w-full h-72 shrink-0">
+                <img id="viewImg" src="" class="w-full h-full object-cover zoom-img rounded-b-3xl shadow-xl">
+                <button id="prevImgBtn" onclick="slideImg(-1)" class="absolute left-3 top-1/2 -translate-y-1/2 bg-black/60 text-white w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/80 z-20 hidden border border-white/20 backdrop-blur-sm"><i class="fa-solid fa-chevron-left"></i></button>
+                <button id="nextImgBtn" onclick="slideImg(1)" class="absolute right-3 top-1/2 -translate-y-1/2 bg-black/60 text-white w-10 h-10 rounded-full flex items-center justify-center hover:bg-black/80 z-20 hidden border border-white/20 backdrop-blur-sm"><i class="fa-solid fa-chevron-right"></i></button>
+                <div id="imgCounter" class="absolute bottom-3 right-3 bg-black/70 text-white text-xs font-bold px-3 py-1.5 rounded-xl z-20 hidden border border-white/20 backdrop-blur-md">1/3</div>
+            </div>
+
+            <div class="p-5 flex-grow relative z-10 -mt-6 bg-gradient-to-b from-transparent to-[#0f2027]">
+                <div class="glass-card p-5 rounded-3xl border border-white/10">
+                    <div class="flex justify-between items-start mb-2">
+                        <h2 id="viewName" class="text-2xl font-bold pr-2 leading-tight"></h2>
+                        <button onclick="toggleLike()" class="text-2xl text-red-500 shrink-0 mt-1"><i id="likeIcon" class="fa-regular fa-heart"></i></button>
+                    </div>
+                    <div class="flex items-center gap-2 mb-4"><span id="viewCat" class="bg-white/10 text-xs px-2 py-1 rounded-md text-gray-300"></span></div>
+                    <p class="text-yellow-400 font-bold text-3xl mb-5 drop-shadow-md">🪙 <span id="viewPrice"></span></p>
+                    <div class="grid grid-cols-2 gap-3 mb-5 text-sm">
+                        <div class="glass p-3 rounded-xl flex items-center gap-3"><i class="fa-solid fa-ranking-star text-blue-400 text-xl"></i><div><span class="block text-gray-400 text-xs">Level</span><span id="viewLevel" class="font-bold text-lg"></span></div></div>
+                        <div class="glass p-3 rounded-xl flex items-center gap-3"><i class="fa-solid fa-calendar-days text-purple-400 text-xl"></i><div><span class="block text-gray-400 text-xs">Age</span><span class="font-bold text-lg"><span id="viewYears"></span> Yrs</span></div></div>
+                    </div>
+                    <h3 class="font-bold text-sm text-gray-400 mb-2 uppercase tracking-wider border-b border-white/10 pb-1">Description</h3>
+                    <p class="text-gray-200 text-sm mb-6 whitespace-pre-line leading-relaxed" id="viewDesc"></p>
+                    
+                    <div class="flex gap-3 mt-auto">
+                        <button onclick="addToCard()" class="w-1/3 glass font-bold py-3 rounded-xl hover:bg-white/20 transition text-blue-400 border border-blue-500/30 flex flex-col items-center justify-center gap-1"><i class="fa-solid fa-cart-plus text-lg"></i><span class="text-xs">Add Card</span></button>
+                        <button onclick="openBuyModal()" class="w-2/3 bg-gradient-to-r from-green-500 to-blue-500 font-bold py-3 rounded-xl hover:opacity-90 transition text-lg shadow-lg shadow-green-500/30">Buy Now</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODALS (Add Money, Buy, Creds, Notif) -->
+        <div id="addMoneyModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[80] hidden flex items-center justify-center p-4">
+            <div class="glass-card w-full max-w-sm rounded-3xl p-6 relative">
+                <button onclick="closeModal('addMoneyModal')" class="absolute top-4 right-5 text-xl text-gray-400 hover:text-white"><i class="fa-solid fa-times"></i></button>
+                <h2 class="text-xl font-bold mb-5 text-center text-blue-400"><i class="fa-solid fa-coins mr-2"></i>Add Coin</h2>
+                <div class="text-center mb-5">
+                    <img id="adminQrCode" src="" alt="QR" class="mx-auto w-36 h-36 rounded-2xl mb-3 shadow-lg hidden">
+                    <div class="bg-black/40 py-3 px-4 rounded-xl border border-white/10 flex items-center justify-between">
+                        <div class="text-left"><span class="text-xs text-gray-400 block">Send money to</span><span id="adminPayNum" class="font-bold text-lg text-green-400">Loading...</span></div>
+                        <button onclick="copyText('adminPayNum')" class="bg-white/10 p-2 rounded-lg text-white hover:bg-white/20 transition"><i class="fa-solid fa-copy"></i></button>
+                    </div>
+                </div>
+                <div class="space-y-3 mb-5">
+                    <input type="text" id="addTxId" placeholder="Transaction ID" class="w-full glass rounded-xl px-4 py-3 outline-none focus:border-blue-500 transition">
+                    <input type="number" id="addAmount" placeholder="Amount Sent" class="w-full glass rounded-xl px-4 py-3 outline-none focus:border-blue-500 transition">
+                    <input type="url" id="addProof" placeholder="Payment Proof URL" class="w-full glass rounded-xl px-4 py-3 outline-none focus:border-blue-500 transition">
+                </div>
+                <button onclick="submitMoneyReq()" class="w-full bg-gradient-to-r from-blue-500 to-purple-600 font-bold py-3 rounded-xl hover:shadow-[0_0_15px_rgba(59,130,246,0.5)] transition text-lg">Submit Request</button>
+            </div>
+        </div>
+
+        <div id="buyModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[70] hidden flex items-center justify-center p-4">
+            <div class="glass-card w-full max-w-sm rounded-3xl p-6 relative border border-blue-500/30">
+                <button onclick="closeModal('buyModal')" class="absolute top-4 right-4 text-xl text-gray-400"><i class="fa-solid fa-times"></i></button>
+                <div class="text-center mb-4"><i class="fa-solid fa-cart-shopping text-3xl text-blue-400 mb-2"></i><h2 class="text-xl font-bold">Confirm Purchase</h2></div>
+                <div class="bg-black/30 p-4 rounded-2xl mb-5 space-y-2">
+                    <div class="flex justify-between items-center"><span class="text-gray-400 text-sm">Your Balance</span><span class="font-bold text-white text-lg">🪙 <span id="buyBal"></span></span></div>
+                    <div class="flex justify-between items-center"><span class="text-gray-400 text-sm">ID Price</span><span class="font-bold text-red-400 text-lg">- 🪙 <span id="buyPrice"></span></span></div>
+                    <div class="h-px w-full bg-white/10 my-2"></div>
+                    <div class="flex justify-between items-center"><span class="text-gray-300 text-sm">Remaining Bal.</span><span class="font-bold text-xl" id="buyRem"></span></div>
+                </div>
+                <button onclick="confirmBuy()" class="w-full bg-blue-600 font-bold py-3 rounded-xl mb-3 hover:bg-blue-500 transition shadow-lg shadow-blue-600/40 text-lg">YES, BUY NOW</button>
+            </div>
+        </div>
+
+        <div id="credModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[90] hidden flex items-center justify-center p-4">
+            <div class="glass-card w-full max-w-sm rounded-3xl p-8 text-center border border-green-500/30">
+                <div class="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4"><i class="fa-solid fa-check text-4xl text-green-400"></i></div>
+                <h2 class="text-2xl font-bold mb-2">Success!</h2>
+                <div class="glass p-4 rounded-2xl mb-3 flex justify-between items-center text-left">
+                    <div class="overflow-hidden pr-2"><span class="text-[11px] text-gray-400 block mb-1">Gmail / Username</span><span id="credGmail" class="font-bold text-sm text-white"></span></div>
+                    <button onclick="copyText('credGmail')" class="bg-blue-500/20 text-blue-400 p-2 rounded-lg"><i class="fa-solid fa-copy"></i></button>
+                </div>
+                <div class="glass p-4 rounded-2xl mb-6 flex justify-between items-center text-left">
+                    <div class="overflow-hidden pr-2"><span class="text-[11px] text-gray-400 block mb-1">Password</span><span id="credPass" class="font-bold text-sm text-white"></span></div>
+                    <button onclick="copyText('credPass')" class="bg-blue-500/20 text-blue-400 p-2 rounded-lg"><i class="fa-solid fa-copy"></i></button>
+                </div>
+                <button onclick="closeModal('credModal')" class="w-full bg-gray-700 font-bold py-3 rounded-xl">Close</button>
+            </div>
+        </div>
+
+        <div id="notifModal" class="fixed inset-0 bg-black/95 backdrop-blur-md z-50 hidden flex-col">
+            <div class="glass p-4 flex justify-between items-center border-b border-white/10">
+                <h2 class="text-xl font-bold flex items-center gap-2"><i class="fa-solid fa-bell text-blue-400"></i> Notifications</h2>
+                <button onclick="closeModal('notifModal')" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-red-500 transition"><i class="fa-solid fa-times"></i></button>
+            </div>
+            <div id="notifList" class="p-4 space-y-4 overflow-y-auto flex-grow"></div>
+        </div>
+    </div> <!-- End Main App -->
+
+    <script>
+        // === FIREBASE CONFIG ===
+        const firebaseConfig = {
+            apiKey: "AIzaSyBjLBUhl-GjFJ_aEtFP7b3j8eAsqTsXOyI",
+            authDomain: "store-8737f.firebaseapp.com",
+            databaseURL: "https://store-8737f-default-rtdb.firebaseio.com",
+            projectId: "store-8737f",
+            storageBucket: "store-8737f.firebasestorage.app",
+            messagingSenderId: "875712413419",
+            appId: "1:875712413419:web:be7c49ea237739091f88ae"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const auth = firebase.auth();
+
+        let uid = null;
+        let allIds = {};
+        let currentViewId = null;
+        let userBalance = 0;
+        let currentViewImages = [];
+        let currentImageIndex = 0;
+
+        // USER AUTH LOGIC
+        let isUserLoginMode = true;
+        function toggleUserAuthMode() {
+            isUserLoginMode = !isUserLoginMode;
+            document.getElementById('regNameField').classList.toggle('hidden');
+            document.getElementById('userAuthTitle').innerText = isUserLoginMode ? "Login to your account" : "Create a new account";
+            document.getElementById('userAuthBtn').innerText = isUserLoginMode ? "Login" : "Sign Up";
+            document.getElementById('userAuthToggleText').innerText = isUserLoginMode ? "Don't have an account?" : "Already have an account?";
+            document.getElementById('userAuthToggleBtn').innerText = isUserLoginMode ? "Sign Up" : "Login";
+        }
+
+        function handleUserAuth() {
+            const email = document.getElementById('authEmail').value.trim();
+            const pass = document.getElementById('authPass').value.trim();
+            const name = document.getElementById('authName').value.trim();
+
+            if(!email || !pass) return alert("Please fill Email and Password!");
+
+            if(isUserLoginMode) {
+                auth.signInWithEmailAndPassword(email, pass).catch(e => alert(e.message));
+            } else {
+                if(!name) return alert("Please enter your name!");
+                auth.createUserWithEmailAndPassword(email, pass).then(cred => {
+                    db.ref(`users/${cred.user.uid}/profile`).set({ name, email });
+                }).catch(e => alert(e.message));
+            }
+        }
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                uid = user.uid;
+                document.getElementById('authScreen').classList.add('hidden');
+                document.getElementById('mainApp').classList.remove('hidden');
+                loadUserData();
+            } else {
+                uid = null;
+                document.getElementById('mainApp').classList.add('hidden');
+                document.getElementById('authScreen').classList.remove('hidden');
+            }
+        });
+
+        function logoutUser() { auth.signOut(); }
+
+        // NAVIGATION & MODALS
+        function navTo(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('text-white', 'text-blue-400'));
+            document.getElementById(pageId).classList.add('active');
+            event.currentTarget.classList.add('text-blue-400');
+            if(pageId === 'search') searchIds();
+        }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+        // DATA LOADERS
+        db.ref('ids').on('value', snap => {
+            allIds = snap.val() || {};
+            renderList('homeList', allIds);
+            searchIds();
+            renderCart();
+        });
+
+        db.ref('adminSettings').on('value', snap => {
+            const data = snap.val() || {};
+            if(data.qrCodeUrl) { document.getElementById('adminQrCode').src = data.qrCodeUrl; document.getElementById('adminQrCode').classList.remove('hidden'); }
+            document.getElementById('adminPayNum').innerText = data.paymentNumber || 'Not Set';
+        });
+
+        db.ref('notifications').on('value', snap => {
+            const data = snap.val() || {};
+            const list = document.getElementById('notifList'); list.innerHTML = ''; document.getElementById('notifDot').classList.remove('hidden');
+            Object.values(data).reverse().forEach(n => {
+                list.innerHTML += `<div class="glass-card p-4 rounded-2xl border border-white/10">
+                    ${n.imageUrl ? `<img src="${n.imageUrl}" class="w-full h-40 object-cover rounded-xl mb-3">` : ''}
+                    <h3 class="font-bold text-lg text-white">${n.title}</h3><p class="text-gray-300 text-sm mt-1">${n.notes}</p>
+                </div>`;
+            });
+        });
+
+        function loadUserData() {
+            if(!uid) return;
+            db.ref(`users/${uid}/balance`).on('value', snap => {
+                userBalance = Number(snap.val() || 0);
+                document.getElementById('userBalance').innerText = userBalance;
+                document.getElementById('walletBalance').innerText = userBalance;
+            });
+            db.ref(`users/${uid}/cart`).on('value', () => renderCart());
+            db.ref(`users/${uid}/history`).on('value', snap => {
+                const hist = snap.val() || {}; const div = document.getElementById('historyList'); div.innerHTML = '';
+                Object.values(hist).reverse().forEach(item => {
+                    const rId = Math.random().toString(36).substring(7);
+                    div.innerHTML += `<div class="glass-card p-4 rounded-2xl border border-white/10">
+                        <h3 class="font-bold mb-3 text-lg">${item.name}</h3>
+                        <div class="text-sm bg-black/40 p-3 rounded-xl flex justify-between items-center mb-2"><div class="overflow-hidden"><span class="text-xs text-gray-500 block mb-1">Gmail</span> <span id="e_${rId}" class="font-medium">${item.gmail}</span></div><i class="fa-solid fa-copy cursor-pointer text-blue-400 p-2 bg-blue-500/10 rounded-lg hover:bg-blue-500/30" onclick="copyText('e_${rId}')"></i></div>
+                        <div class="text-sm bg-black/40 p-3 rounded-xl flex justify-between items-center"><div class="overflow-hidden"><span class="text-xs text-gray-500 block mb-1">Password</span> <span id="p_${rId}" class="font-medium">${item.password}</span></div><i class="fa-solid fa-copy cursor-pointer text-blue-400 p-2 bg-blue-500/10 rounded-lg hover:bg-blue-500/30" onclick="copyText('p_${rId}')"></i></div>
+                    </div>`;
+                });
+            });
+            db.ref(`users/${uid}/transactions`).on('value', snap => {
+                const txs = snap.val() || {}; const div = document.getElementById('txHistory'); div.innerHTML = '';
+                Object.values(txs).reverse().forEach(tx => {
+                    let color = tx.status === 'Approved' ? 'text-green-400' : (tx.status === 'Rejected' ? 'text-red-400' : 'text-yellow-400');
+                    let icon = tx.status === 'Approved' ? 'fa-check-circle' : (tx.status === 'Rejected' ? 'fa-times-circle' : 'fa-clock');
+                    div.innerHTML += `<div class="glass p-4 rounded-2xl flex justify-between items-center text-sm border border-white/5">
+                        <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-lg ${color}"><i class="fa-solid ${icon}"></i></div>
+                        <div><span class="block font-bold text-white text-base">Add Coin</span><span class="${color} text-xs font-medium">${tx.status}</span></div></div>
+                        <span class="font-bold text-xl text-white">+${tx.amount}</span>
+                    </div>`;
+                });
+            });
+        }
+
+        // LISTING & FILTERING
+        function renderList(containerId, dataObj) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            for(const [id, item] of Object.entries(dataObj)) {
+                const coverImg = item.images ? item.images[0] : item.imageUrl;
+                const imgCountBadge = item.images && item.images.length > 1 ? `<div class="absolute bottom-3 right-3 bg-black/60 text-white text-xs px-2 py-1 rounded shadow"><i class="fa-regular fa-images"></i> ${item.images.length}</div>` : '';
+
+                container.innerHTML += `
+                    <div class="glass-card rounded-3xl overflow-hidden cursor-pointer relative border border-white/10" onclick="openView('${id}')">
+                        <div class="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1"><i class="fa-solid fa-star text-yellow-400 text-[10px]"></i> Lv. ${item.level}</div>
+                        <div class="absolute top-3 right-3 bg-black/60 backdrop-blur-md text-yellow-400 font-bold px-3 py-1.5 rounded-xl text-sm shadow-lg">🪙 ${item.price}</div>
+                        <div class="relative w-full h-48"><img src="${coverImg}" class="w-full h-full object-cover">${imgCountBadge}</div>
+                        <div class="p-4 bg-gradient-to-t from-black/80 to-transparent absolute bottom-0 w-full pt-10">
+                            <h3 class="font-bold text-xl truncate text-white drop-shadow-md mb-1">${item.name}</h3>
+                            <div class="flex justify-between items-center text-xs text-gray-300 font-medium"><span class="bg-blue-500/30 text-blue-200 px-2 py-1 rounded-md border border-blue-500/30">${item.category}</span><span><i class="fa-regular fa-clock mr-1"></i>${item.years || 0} Yrs Old</span></div>
+                        </div>
+                    </div>`;
+            }
+        }
+
+        function filterCat(cat) {
+            if(cat === 'All') renderList('homeList', allIds);
+            else { const filtered = Object.fromEntries(Object.entries(allIds).filter(([k,v]) => v.category === cat)); renderList('homeList', filtered); }
+        }
+
+        function searchIds() {
+            const q = document.getElementById('searchInput').value.toLowerCase();
+            const minLvl = parseInt(document.getElementById('filterLevel').value) || 0;
+            const minYrs = parseInt(document.getElementById('filterYears').value) || 0;
+            const filtered = Object.fromEntries(Object.entries(allIds).filter(([k,v]) => {
+                return v.name.toLowerCase().includes(q) && (parseInt(v.level) || 0) >= minLvl && (parseInt(v.years) || 0) >= minYrs;
+            }));
+            renderList('searchList', filtered);
+        }
+
+        // VIEW ID DETAILS
+        function openView(id) {
+            currentViewId = id; const item = allIds[id];
+            currentViewImages = item.images ? item.images : [item.imageUrl];
+            currentImageIndex = 0; updateSliderUI();
+
+            document.getElementById('viewName').innerText = item.name;
+            document.getElementById('viewPrice').innerText = item.price;
+            document.getElementById('viewLevel').innerText = item.level;
+            document.getElementById('viewYears').innerText = item.years;
+            document.getElementById('viewDesc').innerText = item.description;
+            document.getElementById('viewCat').innerText = item.category;
+            document.getElementById('viewModal').classList.remove('hidden');
+        }
+
+        function updateSliderUI() {
+            document.getElementById('viewImg').src = currentViewImages[currentImageIndex];
+            const prevBtn = document.getElementById('prevImgBtn'); const nextBtn = document.getElementById('nextImgBtn'); const counter = document.getElementById('imgCounter');
+            if(currentViewImages.length > 1) {
+                prevBtn.classList.remove('hidden'); nextBtn.classList.remove('hidden'); counter.classList.remove('hidden');
+                counter.innerText = `${currentImageIndex + 1} / ${currentViewImages.length}`;
+            } else { prevBtn.classList.add('hidden'); nextBtn.classList.add('hidden'); counter.classList.add('hidden'); }
+        }
+
+        function slideImg(direction) {
+            currentImageIndex += direction;
+            if (currentImageIndex < 0) currentImageIndex = currentViewImages.length - 1;
+            if (currentImageIndex >= currentViewImages.length) currentImageIndex = 0;
+            updateSliderUI();
+        }
+
+        function toggleLike() {
+            const icon = document.getElementById('likeIcon');
+            icon.classList.toggle('fa-regular'); icon.classList.toggle('fa-solid');
+        }
+
+        // CART & BUY
+        function addToCard() {
+            if(!uid) return;
+            db.ref(`users/${uid}/cart/${currentViewId}`).set(true); alert("Added to Card!");
+        }
+
+        function renderCart() {
+            if(!uid) return;
+            db.ref(`users/${uid}/cart`).once('value', snap => {
+                const cart = snap.val() || {}; const div = document.getElementById('cartList'); div.innerHTML = '';
+                for(let id in cart) {
+                    if(allIds[id]) {
+                        const item = allIds[id]; const coverImg = item.images ? item.images[0] : item.imageUrl;
+                        div.innerHTML += `
+                            <div class="glass-card p-3 rounded-2xl flex items-center gap-3 border border-white/5">
+                                <img src="${coverImg}" class="w-20 h-20 rounded-xl object-cover">
+                                <div class="flex-grow">
+                                    <h3 class="font-bold text-base line-clamp-1">${item.name}</h3>
+                                    <span class="text-xs text-gray-400 block mb-1">Lv. ${item.level}</span>
+                                    <span class="text-yellow-400 text-sm font-bold bg-yellow-500/10 px-2 py-0.5 rounded">🪙 ${item.price}</span>
+                                </div>
+                                <div class="flex flex-col gap-2">
+                                    <button onclick="openView('${id}')" class="bg-blue-600 px-3 py-1.5 rounded-lg text-xs font-bold w-full text-center hover:bg-blue-500 transition">Buy</button>
+                                    <button onclick="db.ref('users/${uid}/cart/${id}').remove()" class="bg-red-500/20 text-red-400 px-3 py-1.5 rounded-lg text-xs w-full text-center hover:bg-red-500/40 transition"><i class="fa-solid fa-trash"></i></button>
+                                </div>
+                            </div>`;
+                    }
+                }
+            });
+        }
+
+        function openBuyModal() {
+            const item = allIds[currentViewId];
+            document.getElementById('buyBal').innerText = userBalance;
+            document.getElementById('buyPrice').innerText = item.price;
+            document.getElementById('buyRem').innerText = '🪙 ' + (userBalance - item.price);
+            document.getElementById('buyRem').className = (userBalance >= item.price) ? 'font-bold text-xl text-green-400' : 'font-bold text-xl text-red-400';
+            document.getElementById('buyModal').classList.remove('hidden');
+        }
+
+        function confirmBuy() {
+            const item = allIds[currentViewId];
+            if(userBalance >= item.price) {
+                db.ref(`users/${uid}/balance`).set(userBalance - item.price);
+                db.ref(`users/${uid}/history/${currentViewId}`).set({...item, timestamp: Date.now()});
+                db.ref(`users/${uid}/cart/${currentViewId}`).remove(); db.ref(`ids/${currentViewId}`).remove();
+                closeModal('buyModal'); closeModal('viewModal');
+                document.getElementById('credGmail').innerText = item.gmail; document.getElementById('credPass').innerText = item.password;
+                document.getElementById('credModal').classList.remove('hidden');
+            } else {
+                alert("Insufficient Coin Balance! Please add coins.");
+                closeModal('buyModal'); document.getElementById('addMoneyModal').classList.remove('hidden');
+            }
+        }
+
+        // WALLET REQUEST
+        function submitMoneyReq() {
+            const txId = document.getElementById('addTxId').value; const amount = document.getElementById('addAmount').value; const proof = document.getElementById('addProof').value;
+            if(!txId || !amount) return alert("Fill Transaction ID and Amount!");
+            const reqId = db.ref('moneyRequests').push().key;
+            // AMOUNT STRING PROBLEM FIXED -> Number(amount)
+            const data = { uid, txId, amount: Number(amount), proofUrl: proof, status: 'Pending', time: Date.now() };
+            db.ref(`moneyRequests/${reqId}`).set(data); db.ref(`users/${uid}/transactions/${reqId}`).set(data);
+            alert("Request Submitted Successfully! Please wait for admin approval.");
+            document.getElementById('addTxId').value = ''; document.getElementById('addAmount').value = ''; document.getElementById('addProof').value = '';
+            closeModal('addMoneyModal');
+        }
+
+        function copyText(elementId) { navigator.clipboard.writeText(document.getElementById(elementId).innerText); alert("Copied to clipboard!"); }
+        function openNotif() { document.getElementById('notifDot').classList.add('hidden'); document.getElementById('notifModal').classList.remove('hidden'); }
+    </script>
+</body>
+</html>

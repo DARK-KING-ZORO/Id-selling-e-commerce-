@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Admin - JCL ID Selle</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        body { background-color: #f3f4f6; font-family: 'Segoe UI', sans-serif; }
+        .tab-content { display: none; animation: fadeIn 0.3s ease; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <!-- AUTHENTICATION SCREEN -->
+    <div id="loginScreen" class="fixed inset-0 bg-gray-900 z-[100] flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center">
+            <div class="bg-blue-100 w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4">
+                <i class="fa-solid fa-user-shield text-3xl text-blue-600"></i>
+            </div>
+            <h2 class="text-2xl font-bold mb-6 text-gray-800" id="authTitle">Admin Login</h2>
+            
+            <input type="email" id="adminEmail" placeholder="Admin Email" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 mb-3 focus:border-blue-500 outline-none transition">
+            <input type="password" id="adminPass" placeholder="Password" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 mb-4 focus:border-blue-500 outline-none transition">
+            
+            <button id="authBtn" onclick="handleAuth()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition shadow-lg shadow-blue-500/30">LOGIN</button>
+            
+            <p class="text-sm text-gray-500 mt-4 cursor-pointer hover:text-blue-600 transition" onclick="toggleAuthMode()" id="authToggleText">Don't have an admin account? Create one</p>
+        </div>
+    </div>
+
+    <!-- MAIN DASHBOARD -->
+    <div id="dashboard" class="hidden flex h-screen overflow-hidden">
+        <!-- DESKTOP SIDEBAR -->
+        <div class="hidden md:flex w-64 bg-gray-900 text-white flex-col shadow-xl z-10">
+            <div class="p-6 text-2xl font-bold border-b border-gray-800 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent text-center">JCL ADMIN</div>
+            <nav class="flex-grow p-4 space-y-2">
+                <button onclick="switchTab('tab-ids', this)" class="admin-nav-btn w-full text-left px-4 py-3 rounded-xl bg-gray-800 text-white transition"><i class="fa-solid fa-gamepad w-6"></i> Manage IDs</button>
+                <button onclick="switchTab('tab-requests', this)" class="admin-nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-gray-800 text-gray-400 transition"><i class="fa-solid fa-money-bill-transfer w-6"></i> Requests</button>
+                <button onclick="switchTab('tab-notifs', this)" class="admin-nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-gray-800 text-gray-400 transition"><i class="fa-solid fa-bell w-6"></i> Notifications</button>
+                <button onclick="switchTab('tab-settings', this)" class="admin-nav-btn w-full text-left px-4 py-3 rounded-xl hover:bg-gray-800 text-gray-400 transition"><i class="fa-solid fa-gear w-6"></i> Settings</button>
+            </nav>
+            <button onclick="logout()" class="m-4 bg-red-600 hover:bg-red-700 text-white py-3 rounded-xl font-bold transition"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
+        </div>
+
+        <!-- CONTENT AREA -->
+        <div class="flex-grow overflow-y-auto pb-24 md:pb-8 p-4 md:p-8 relative">
+            <div class="md:hidden flex justify-between items-center mb-6 bg-white p-4 rounded-xl shadow-sm">
+                <h1 class="text-xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">JCL ADMIN</h1>
+                <button onclick="logout()" class="text-red-500 text-xl hover:scale-110 transition"><i class="fa-solid fa-right-from-bracket"></i></button>
+            </div>
+            
+            <!-- IDs TAB -->
+            <div id="tab-ids" class="tab-content active max-w-5xl mx-auto">
+                <div class="flex justify-between items-center mb-6"><h2 class="text-xl md:text-2xl font-bold">Manage IDs</h2></div>
+
+                <!-- Add ID Form -->
+                <div class="bg-white p-4 md:p-6 rounded-2xl shadow-sm mb-6 border border-gray-100">
+                    <h3 class="font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-circle-plus text-blue-500"></i> Add New ID</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                        <input type="text" id="idName" placeholder="ID Name" class="border border-gray-200 p-3 rounded-xl w-full outline-none focus:border-blue-500">
+                        <select id="idCat" class="border border-gray-200 p-3 rounded-xl w-full outline-none focus:border-blue-500 bg-white">
+                            <option>FreeFire</option><option>BGMI</option><option>Instagram</option>
+                            <option>Facebook</option><option>YouTube</option>
+                        </select>
+                        <input type="number" id="idLevel" placeholder="Level / Followers" class="border border-gray-200 p-3 rounded-xl w-full outline-none focus:border-blue-500">
+                        <input type="number" id="idYears" placeholder="Years Old" class="border border-gray-200 p-3 rounded-xl w-full outline-none focus:border-blue-500">
+                        <input type="number" id="idPrice" placeholder="Price (Coins)" class="border border-gray-200 p-3 rounded-xl w-full outline-none focus:border-blue-500">
+                        <input type="text" id="idGmail" placeholder="Login Gmail / Username" class="border border-gray-200 p-3 rounded-xl w-full outline-none focus:border-blue-500">
+                        <input type="text" id="idPass" placeholder="Login Password" class="border border-gray-200 p-3 rounded-xl w-full outline-none focus:border-blue-500">
+                        
+                        <div id="imageInputsContainer" class="col-span-1 md:col-span-2 space-y-2 mt-2">
+                            <label class="text-xs font-bold text-gray-500 uppercase">Images (Add Multiple)</label>
+                            <div class="flex gap-2">
+                                <input type="url" name="idImg" placeholder="Main Image URL 1" class="border border-gray-200 p-3 rounded-xl w-full outline-none focus:border-blue-500">
+                                <button type="button" onclick="addImageInput()" class="bg-blue-100 text-blue-600 px-4 rounded-xl font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <textarea id="idDesc" placeholder="Account Description" class="border border-gray-200 p-3 rounded-xl w-full mb-4 h-24 outline-none focus:border-blue-500"></textarea>
+                    <button onclick="addId()" class="w-full md:w-auto bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-500/30">Upload ID</button>
+                </div>
+
+                <h3 class="font-bold mb-3 text-gray-600">All Available IDs</h3>
+                <div id="adminIdList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+            </div>
+
+            <!-- REQUESTS TAB -->
+            <div id="tab-requests" class="tab-content max-w-5xl mx-auto">
+                <h2 class="text-xl md:text-2xl font-bold mb-6">Money Requests</h2>
+                <div id="reqList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            </div>
+
+            <!-- NOTIFICATIONS TAB -->
+            <div id="tab-notifs" class="tab-content max-w-3xl mx-auto">
+                <h2 class="text-xl md:text-2xl font-bold mb-6">Notifications</h2>
+                <div class="bg-white p-4 md:p-6 rounded-2xl shadow-sm mb-6 border border-gray-100">
+                    <input type="text" id="nTitle" placeholder="Notification Title" class="w-full border border-gray-200 p-3 rounded-xl mb-3 outline-none focus:border-blue-500">
+                    <textarea id="nNotes" placeholder="Message / Notes" class="w-full border border-gray-200 p-3 rounded-xl mb-3 h-24 outline-none focus:border-blue-500"></textarea>
+                    <input type="url" id="nImg" placeholder="Image URL (Optional)" class="w-full border border-gray-200 p-3 rounded-xl mb-4 outline-none focus:border-blue-500">
+                    <button onclick="sendNotif()" class="w-full bg-purple-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-purple-700 transition shadow-lg shadow-purple-500/30">Send Notification</button>
+                </div>
+                <div id="notifListAdmin" class="space-y-4"></div>
+            </div>
+
+            <!-- SETTINGS TAB -->
+            <div id="tab-settings" class="tab-content max-w-xl mx-auto">
+                <h2 class="text-xl md:text-2xl font-bold mb-6">App Settings</h2>
+                <div class="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <label class="font-bold block mb-2 text-gray-700">Wallet QR Code Image URL</label>
+                    <input type="url" id="setQr" placeholder="https://..." class="w-full border border-gray-200 p-3 rounded-xl mb-4 outline-none focus:border-blue-500">
+                    <label class="font-bold block mb-2 text-gray-700">Payment Number</label>
+                    <input type="text" id="setNum" placeholder="e.g. 01XXXXXXXXX" class="w-full border border-gray-200 p-3 rounded-xl mb-6 outline-none focus:border-blue-500">
+                    <button onclick="saveSettings()" class="w-full bg-gray-900 text-white px-6 py-3 rounded-xl font-bold hover:bg-black transition shadow-lg shadow-gray-900/30">Save Configuration</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MOBILE BOTTOM NAV -->
+        <div class="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex justify-around items-center py-2 pb-4 px-2 z-50 rounded-t-2xl shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.05)]">
+            <button onclick="switchTab('tab-ids', this)" class="admin-nav-btn text-blue-600 flex flex-col items-center p-2"><i class="fa-solid fa-gamepad text-xl mb-1"></i><span class="text-[10px] font-bold">IDs</span></button>
+            <button onclick="switchTab('tab-requests', this)" class="admin-nav-btn text-gray-400 flex flex-col items-center p-2"><i class="fa-solid fa-money-bill-transfer text-xl mb-1"></i><span class="text-[10px] font-bold">Requests</span></button>
+            <button onclick="switchTab('tab-notifs', this)" class="admin-nav-btn text-gray-400 flex flex-col items-center p-2"><i class="fa-solid fa-bell text-xl mb-1"></i><span class="text-[10px] font-bold">Notifs</span></button>
+            <button onclick="switchTab('tab-settings', this)" class="admin-nav-btn text-gray-400 flex flex-col items-center p-2"><i class="fa-solid fa-gear text-xl mb-1"></i><span class="text-[10px] font-bold">Settings</span></button>
+        </div>
+    </div>
+
+    <script>
+        // === FIREBASE CONFIG ===
+        const firebaseConfig = {
+            apiKey: "AIzaSyBjLBUhl-GjFJ_aEtFP7b3j8eAsqTsXOyI",
+            authDomain: "store-8737f.firebaseapp.com",
+            databaseURL: "https://store-8737f-default-rtdb.firebaseio.com",
+            projectId: "store-8737f",
+            storageBucket: "store-8737f.firebasestorage.app",
+            messagingSenderId: "875712413419",
+            appId: "1:875712413419:web:be7c49ea237739091f88ae"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const auth = firebase.auth();
+
+        // Admin Auth Logic
+        let isLoginMode = true;
+        function toggleAuthMode() {
+            isLoginMode = !isLoginMode;
+            document.getElementById('authTitle').innerText = isLoginMode ? "Admin Login" : "Register Admin";
+            document.getElementById('authBtn').innerText = isLoginMode ? "LOGIN" : "REGISTER";
+            document.getElementById('authToggleText').innerText = isLoginMode ? "Don't have an admin account? Create one" : "Already have an account? Login here";
+        }
+
+        function handleAuth() {
+            const email = document.getElementById('adminEmail').value.trim();
+            const pass = document.getElementById('adminPass').value.trim();
+            if(!email || !pass) return alert("Please fill all fields!");
+
+            if(isLoginMode) {
+                auth.signInWithEmailAndPassword(email, pass).catch(e => alert(e.message));
+            } else {
+                auth.createUserWithEmailAndPassword(email, pass).catch(e => alert(e.message));
+            }
+        }
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('dashboard').classList.remove('hidden');
+                loadAdminData();
+            } else {
+                document.getElementById('loginScreen').classList.remove('hidden');
+                document.getElementById('dashboard').classList.add('hidden');
+            }
+        });
+
+        function logout() { auth.signOut(); }
+
+        function switchTab(tabId, btn) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            document.querySelectorAll('.admin-nav-btn').forEach(el => {
+                if(el.classList.contains('w-full')) { el.classList.remove('bg-gray-800', 'text-white'); el.classList.add('text-gray-400'); }
+                else { el.classList.remove('text-blue-600'); el.classList.add('text-gray-400'); }
+            });
+            if(btn) {
+                if(btn.classList.contains('w-full')) { btn.classList.add('bg-gray-800', 'text-white'); btn.classList.remove('text-gray-400'); }
+                else { btn.classList.add('text-blue-600'); btn.classList.remove('text-gray-400'); }
+            }
+        }
+
+        let imgCount = 1;
+        function addImageInput() {
+            imgCount++;
+            const div = document.createElement('div');
+            div.className = 'flex gap-2';
+            div.innerHTML = `<input type="url" name="idImg" placeholder="Image URL ${imgCount}" class="border border-gray-200 p-3 rounded-xl w-full outline-none focus:border-blue-500">
+                <button type="button" onclick="this.parentElement.remove()" class="bg-red-50 text-red-500 px-4 rounded-xl font-bold hover:bg-red-100 transition"><i class="fa-solid fa-minus"></i></button>`;
+            document.getElementById('imageInputsContainer').appendChild(div);
+        }
+
+        function loadAdminData() {
+            db.ref('ids').on('value', snap => {
+                const data = snap.val() || {}; const list = document.getElementById('adminIdList'); list.innerHTML = '';
+                for(let key in data) {
+                    const i = data[key]; const coverImg = i.images ? i.images[0] : i.imageUrl;
+                    const imgCountText = i.images && i.images.length > 1 ? `<span class="bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded absolute top-2 right-2 border border-white/20"><i class="fa-regular fa-images"></i> ${i.images.length}</span>` : '';
+                    list.innerHTML += `<div class="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex gap-3 items-center">
+                        <div class="relative shrink-0"><img src="${coverImg}" class="w-16 h-16 object-cover rounded-xl bg-gray-100 border border-gray-200">${imgCountText}</div>
+                        <div class="flex-grow overflow-hidden"><h4 class="font-bold text-gray-800 truncate text-sm">${i.name}</h4><p class="text-xs text-gray-500 mb-1">${i.category} • Lv.${i.level}</p><p class="text-sm font-bold text-yellow-500">🪙 ${i.price}</p></div>
+                        <button onclick="deleteId('${key}')" class="bg-red-50 text-red-500 w-10 h-10 rounded-xl flex items-center justify-center hover:bg-red-100 transition shrink-0"><i class="fa-solid fa-trash"></i></button>
+                    </div>`;
+                }
+            });
+
+            db.ref('moneyRequests').on('value', snap => {
+                const data = snap.val() || {}; const list = document.getElementById('reqList'); list.innerHTML = '';
+                for(let key in data) {
+                    const r = data[key]; if(r.status !== 'Pending') continue;
+                    list.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 relative">
+                        <span class="absolute top-4 right-4 bg-yellow-100 text-yellow-600 text-[10px] font-bold px-2 py-1 rounded-md">PENDING</span>
+                        <p class="text-xs text-gray-500 mb-1">Transaction ID</p><p class="font-bold text-gray-800 break-all mb-2">${r.txId}</p>
+                        <div class="flex items-center gap-4 mb-4"><div><p class="text-xs text-gray-500">Amount</p><p class="font-bold text-green-600 text-lg">🪙 ${r.amount}</p></div>
+                        <a href="${r.proofUrl}" target="_blank" class="bg-blue-50 text-blue-600 px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-100 transition flex items-center gap-1"><i class="fa-solid fa-image"></i> View Proof</a></div>
+                        <div class="flex gap-2">
+                            <button onclick="approveReq('${key}', '${r.uid}', ${r.amount})" class="flex-1 bg-green-500 text-white py-2 rounded-xl text-sm font-bold shadow-md shadow-green-500/30 hover:bg-green-600">Approve</button>
+                            <button onclick="rejectReq('${key}', '${r.uid}')" class="flex-1 bg-red-500 text-white py-2 rounded-xl text-sm font-bold shadow-md shadow-red-500/30 hover:bg-red-600">Reject</button>
+                        </div>
+                    </div>`;
+                }
+            });
+
+            db.ref('notifications').on('value', snap => {
+                const data = snap.val() || {}; const div = document.getElementById('notifListAdmin'); div.innerHTML = '';
+                for(let key in data) {
+                    const n = data[key]; div.innerHTML += `<div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex gap-4 items-center">
+                        ${n.imageUrl ? `<img src="${n.imageUrl}" class="w-16 h-16 object-cover rounded-xl">` : `<div class="w-16 h-16 bg-purple-100 text-purple-500 rounded-xl flex items-center justify-center text-2xl"><i class="fa-solid fa-bell"></i></div>`}
+                        <div class="flex-grow"><h4 class="font-bold text-gray-800">${n.title}</h4><p class="text-sm text-gray-500 line-clamp-1">${n.notes}</p></div>
+                        <button onclick="deleteNotif('${key}')" class="text-red-400 bg-red-50 w-10 h-10 rounded-xl flex items-center justify-center hover:bg-red-100 shrink-0"><i class="fa-solid fa-trash"></i></button>
+                    </div>`;
+                }
+            });
+
+            db.ref('adminSettings').once('value', snap => {
+                const data = snap.val() || {};
+                document.getElementById('setQr').value = data.qrCodeUrl || '';
+                document.getElementById('setNum').value = data.paymentNumber || '';
+            });
+        }
+
+        function addId() {
+            const imgInputs = document.querySelectorAll('input[name="idImg"]'); let imagesArray = [];
+            imgInputs.forEach(inp => { if(inp.value.trim() !== '') imagesArray.push(inp.value.trim()); });
+            if(imagesArray.length === 0) return alert("Please add at least one Image URL!");
+
+            const data = {
+                name: document.getElementById('idName').value, category: document.getElementById('idCat').value,
+                level: document.getElementById('idLevel').value, years: document.getElementById('idYears').value,
+                price: Number(document.getElementById('idPrice').value), images: imagesArray,
+                gmail: document.getElementById('idGmail').value, password: document.getElementById('idPass').value,
+                description: document.getElementById('idDesc').value
+            };
+            
+            if(!data.name || !data.price) return alert("Fill required fields!");
+            db.ref('ids').push(data); alert("ID Added Successfully!");
+            
+            document.querySelectorAll('#tab-ids input[type="text"], #tab-ids input[type="number"], #tab-ids textarea').forEach(el => el.value = '');
+            document.getElementById('imageInputsContainer').innerHTML = `<label class="text-xs font-bold text-gray-500 uppercase">Images (Add Multiple)</label><div class="flex gap-2"><input type="url" name="idImg" placeholder="Main Image URL 1" class="border border-gray-200 p-3 rounded-xl w-full outline-none focus:border-blue-500"><button type="button" onclick="addImageInput()" class="bg-blue-100 text-blue-600 px-4 rounded-xl font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-plus"></i></button></div>`;
+            imgCount = 1;
+        }
+
+        function deleteId(key) { if(confirm("Are you sure you want to delete this ID?")) db.ref(`ids/${key}`).remove(); }
+
+        // === FIXED COIN ADD BUG HERE ===
+        function approveReq(reqId, userUid, amount) {
+            if(!confirm("Approve this money request?")) return;
+            
+            // Convert to strict Number to avoid string concatenation (e.g. 0 + 500 = 0500)
+            const numAmount = Number(amount); 
+            
+            db.ref(`moneyRequests/${reqId}/status`).set('Approved');
+            db.ref(`users/${userUid}/transactions/${reqId}/status`).set('Approved');
+            
+            const balanceRef = db.ref(`users/${userUid}/balance`);
+            balanceRef.once('value', snap => {
+                const currentBal = Number(snap.val() || 0);
+                balanceRef.set(currentBal + numAmount).then(() => {
+                    alert(`🪙 ${numAmount} Coins successfully added to user!`);
+                });
+            });
+        }
+
+        function rejectReq(reqId, userUid) {
+            if(!confirm("Reject this money request?")) return;
+            db.ref(`moneyRequests/${reqId}/status`).set('Rejected');
+            db.ref(`users/${userUid}/transactions/${reqId}/status`).set('Rejected');
+        }
+
+        function sendNotif() {
+            const data = { title: document.getElementById('nTitle').value, notes: document.getElementById('nNotes').value, imageUrl: document.getElementById('nImg').value };
+            if(!data.title || !data.notes) return alert("Title and Notes required!");
+            db.ref('notifications').push(data);
+            document.getElementById('nTitle').value = ''; document.getElementById('nNotes').value = ''; document.getElementById('nImg').value = '';
+            alert("Notification Sent!");
+        }
+
+        function deleteNotif(key) { db.ref(`notifications/${key}`).remove(); }
+
+        function saveSettings() {
+            db.ref('adminSettings').set({ qrCodeUrl: document.getElementById('setQr').value, paymentNumber: document.getElementById('setNum').value });
+            alert("Settings Saved Successfully!");
+        }
+    </script>
+</body>
+</html>
