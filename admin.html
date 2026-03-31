@@ -173,15 +173,23 @@
         }
 
         auth.onAuthStateChanged(user => {
-            if (user) {
-                document.getElementById('loginScreen').classList.add('hidden');
-                document.getElementById('dashboard').classList.remove('hidden');
-                loadAdminData();
-            } else {
-                document.getElementById('loginScreen').classList.remove('hidden');
-                document.getElementById('dashboard').classList.add('hidden');
+    if (user) {
+        db.ref(`users/${user.uid}/role`).once('value', snap => {
+            if (snap.val() !== "admin") {
+                alert("Access Denied");
+                auth.signOut();
+                return;
             }
+
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+            loadAdminData();
         });
+    } else {
+        document.getElementById('loginScreen').classList.remove('hidden');
+        document.getElementById('dashboard').classList.add('hidden');
+    }
+});
 
         function logout() { auth.signOut(); }
 
