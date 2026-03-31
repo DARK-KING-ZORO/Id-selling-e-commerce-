@@ -275,12 +275,18 @@
                 auth.signInWithEmailAndPassword(email, pass).catch(e => alert(e.message));
             } else {
                 if(!name) return alert("Please enter your name!");
-                auth.createUserWithEmailAndPassword(email, pass).then(cred => {
+                auth.createUserWithEmailAndPassword(email, pass)
+.then(cred => {
     db.ref(`users/${cred.user.uid}`).set({
         profile: { name, email },
         balance: 0,
         role: "user"
     });
+    alert("Signup Success");
+})
+.catch(e => {
+    alert(e.message);
+});
 })
                 }).catch(e => alert(e.message));
             }
